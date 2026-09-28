@@ -77,7 +77,7 @@ python eval_genome.py runs/<date>/genome_panel_aug.pt prodigal orf --panel
 python compare_proteins.py runs/<date>/genome_panel_aug.pt prodigal fgs_454_10 diamond_panel --runs <nanopore run>
 ```
 Training takes ~20 minutes on one RTX 4090. Every run logs to `runs/<date>/metrics.json`; `python watch.py`
-shows live progress. Some helper scripts (`detach.ps1`, `gpu_idle.py`) are specific to the author's
+shows live progress. The helper `detach.ps1` is specific to the author's
 Windows machine; external tools (minimap2 in WSL, FragGeneScanRs, DIAMOND) go in `tools/`.
 
 ## Data and licences
