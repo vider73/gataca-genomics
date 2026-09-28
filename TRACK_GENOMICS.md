@@ -70,6 +70,11 @@ GPU: one local job at a time; queue scripts wait on `gpu_idle.py` (e.g. `runs/20
   at panel_aug's level (genes via decoder 0.934 vs 0.930; 1% indels 0.900 vs 0.902) except 5% uniform
   substitutions (0.956 vs 0.971) and 150 bp fragments (0.932 vs 0.943).
 
+- **Practical test: proteins from raw reads** (`runs/2026-09-28/proteins_report.md`), 2026 H. volcanii
+  reads: organ panel_aug + decoder recovers 0.883 of proteins (precision 0.906) vs FragGeneScanRs 0.864
+  (0.833-0.850), Prodigal 0.257, DIAMOND -F vs the training species 0.259, DIAMOND vs the own proteome
+  (oracle) 0.963. Best non-oracle method, but only by ~2 pt; FragGeneScan is the real baseline.
+
 ## Next (in priority order)
 1. Seeds (3 per organ) for panel_aug, panel_ontmix_ft and panel_ontmix_sub_ft (4k-step fine-tunes are
    ~7 min each): the three differ by <= 1.5 pt, so pick the default organ with error bars.
