@@ -1,73 +1,92 @@
-# GATACA Genomics — gene structure read from raw, error-laden DNA
+# GATACA Genomics — reading genes straight from raw, error-laden DNA reads
 
-A small neural "organ" reads raw DNA (natively 2-bit: G/A/T/C = 00/01/10/11) and labels every base
-with its gene structure: non-coding, or coding on the forward/reverse strand at codon position 1, 2
-or 3. Nobody tells it where genes or codons start. The goal is **robustness**: reads that start
-anywhere, sequencing errors (substitutions and, above all, insertions/deletions that shift the
-reading frame), short fragments and species it has never seen.
+A small neural network (~7M parameters) reads raw DNA, 2 bits per base, and labels every base with its
+gene structure: non-coding, or coding on the forward/reverse strand at codon position 1, 2 or 3. It is
+never told where genes or codons start. Because it knows the codon position of every base, it can
+translate genes **through sequencing errors**, correcting frameshifts as it goes.
 
-Codons play the role of bytes and the reading frame plays the role of byte alignment. The same idea
-applied to raw file bits (text, audio) lives in a sister project, *GATACA tokenizers*, which shares
-the model code (`gataca.py`) but not the data or results.
+## The result: more real proteins from raw nanopore reads, with no reference database
+Real Oxford Nanopore reads (2026 chemistry, 96.3% identity) of *Haloferax volcanii*, an archaeon the
+model never saw in training. Each read is processed on its own, before any assembly. A gene counts as
+recovered when one predicted protein matches it with >= 80% coverage and >= 80% identity.
 
-## Main results (details and caveats in `runs/*/*.md` and `TRACK_GENOMICS.md`)
-Organ: `gataca.Segmenter(n_out=7, conv_layers=6)`, ~7M parameters (dilated conv stem + 4 attention
-blocks), trained on 13 bacterial/archaeal species; evaluated on 5 held-out species.
+| method (3,811 genes lying fully inside 299 reads) | genes recovered | precision |
+|---|---|---|
+| **this model (panel_aug + grammar decoder), 3 seeds** | **0.885 ± 0.003** | **0.903 ± 0.003** |
+| FragGeneScanRs, best of 3 sequencing-error models | 0.864 | 0.833 – 0.850 |
+| Prodigal, metagenomic mode | 0.257 | 0.699 |
+| DIAMOND blastx, frameshift-aware (`--long-reads`), against the 13 training species | 0.259 | 0.948 |
+| *DIAMOND against H. volcanii's own proteome (oracle: needs the answer's proteome)* | *0.963* | *0.974* |
 
-| mean over 5 held-out species | Prodigal | organ `panel_aug` | organ `panel_ontmix_ft` |
-|---|---|---|---|
-| frame accuracy, clean genome | **0.991** | 0.987 | 0.983 |
-| frame accuracy, 5% substitutions | 0.861 | **0.971** | 0.956 |
-| frame accuracy, 1% indels | 0.499 | **0.902** | 0.900 |
-| frame accuracy, 150 bp fragments | 0.913 | **0.943** | 0.932 |
+- It beats FragGeneScan, the standard gene finder for error-prone reads, by **+2.1 points of recall and
+  +5 points of precision**, consistently across seeds (every seed is above FragGeneScan's best model).
+- It needs no reference proteins. Homology search without a close relative in the database finds
+  about a quarter of the proteins; with the organism's own proteome (not available in practice for a
+  new organism) it finds 96%.
+- On the same reads it keeps the reading frame on 94.7% of coding bases, vs 57.7% for Prodigal.
 
-Real nanopore reads of *Haloferax volcanii* (an archaeon never seen in training), each read on its own:
+Details: `runs/2026-09-28/proteins_report.md`, `runs/2026-09-28/seeds_report.md`.
 
-| frame accuracy | 2026 reads (96.3% identity) | same stretches, no errors | 2020 reads (82.2% identity) |
-|---|---|---|---|
-| Prodigal (meta mode) | 0.577 | **0.994** | 0.106 |
-| organ `panel_aug` | **0.947** | 0.989 | 0.386 |
-| organ `panel_ontmix_ft` | 0.945 | 0.988 | **0.542** |
+## Honest limitations
+- **The margin is small.** FragGeneScan is close (0.864 vs 0.885). This is an incremental improvement,
+  not a new capability.
+- **One species, one read set.** All real-read numbers come from one held-out archaeon. More species
+  and simulated nanopore reads are needed before a general claim.
+- **On clean genomes, Prodigal is better**: 0.991 vs 0.987 frame accuracy, and 0.980 vs 0.927 of genes
+  with the exact stop codon. The model only pays off when the sequence has errors.
+- **Prodigal on raw reads is a weak baseline** (it is not designed for them); FragGeneScan is the
+  fair comparison.
+- **Very noisy reads (2020 chemistry, 82% identity)**: no method recovers proteins at >= 80% identity.
+  A nanopore-noise fine-tune (`panel_ontmix_ft`) reads 0.535 of the frame there (panel_aug 0.386,
+  Prodigal 0.106), but that does not yet give usable proteins.
+- Bacterial and archaeal genes only (no introns). Not yet compared with neural gene finders (e.g. Balrog).
 
-Caveats:
-- Prodigal is better on clean genomes and at exact gene boundaries (genes with the exact stop codon,
-  clean: 0.980 vs 0.930 for the organ + grammar decoder). The organ's advantage is under errors.
-- Gene-level precision on reads is not yet fair: genes cut by a read's end count as false predictions.
-- One held-out species for real reads, one seed per organ: no error bars yet.
-- Tools built for error-prone reads (FragGeneScan) and neural gene finders (Balrog) are not compared yet.
-- The synthetic "grammar" probe uses the same generator as the synthetic training data.
+## Robustness on 5 held-out species (mean, 3 seeds; synthetic errors on whole genomes)
+| frame accuracy | Prodigal | panel_aug |
+|---|---|---|
+| clean genome | **0.991** | 0.987 |
+| 5% substitutions | 0.861 | **0.970** |
+| 1% insertions/deletions | 0.499 | **0.902** |
+| 150 bp fragments | 0.913 | **0.942** |
+
+Trained on 13 bacterial/archaeal species (GC 29–72%); held out: *B. subtilis*, *S. pneumoniae*,
+*D. radiodurans*, *T. thermophilus*, *H. volcanii*.
 
 ## How it works
+Model: `gataca.Segmenter(n_out=7, conv_layers=6)`: a 6-layer dilated convolution stem and 4 attention
+blocks over 1,024-base windows, trained per base with noise augmentation (random substitutions and
+indels; inserted bases carry no label, so the model learns to recover the original annotation across
+frameshifts). A Viterbi decoder with a soft gene grammar (starts, stops, codons, frameshifts allowed at a
+cost) turns per-base probabilities into genes. Proteins are translated with the model's own codon
+positions: an inserted base is dropped, a missing one becomes X.
+
 | step | script |
 |---|---|
 | download genomes from NCBI RefSeq, per-base labels (`--panel` for all 18) | `prepare_genome.py` |
-| train an organ (`--panel`, `--noise aug\|ont`, `--err-dist mix`, `--init`) | `train_genome.py` |
-| robustness table vs Prodigal and a naive ORF rule (`--panel`) | `eval_genome.py` |
-| grammar vs "accent" probe on synthetic genes | `probe_synthetic.py` |
-| align real nanopore reads (minimap2 in WSL), then score on them | `prepare_nanopore.py`, `eval_nanopore.py` |
-
-Training noise: `--noise aug` (uniform substitutions + indels) or `--noise ont` (`gataca.mutate_nanopore`:
-indel-heavy, homopolymer-biased, bursty; a published nanopore error profile, not fit to the test reads).
-Genes are read off the per-base labels with a Viterbi grammar decoder (`eval_genome.grammar_decode`).
+| train (`--panel`, `--noise aug\|ont`, `--err-dist mix`, `--init`, `--seed`) | `train_genome.py` |
+| robustness table vs Prodigal and a naive ORF rule | `eval_genome.py` |
+| align real nanopore reads to the reference (minimap2), score frame accuracy | `prepare_nanopore.py`, `eval_nanopore.py` |
+| proteins from raw reads vs FragGeneScanRs, DIAMOND, Prodigal | `compare_proteins.py` |
+| grammar vs species-"accent" probe on synthetic genes | `probe_synthetic.py` |
 
 ```bash
 pip install -r requirements.txt
 python prepare_genome.py --panel
 python train_genome.py --panel --noise aug --steps 12000 --run-name panel_aug
-python train_genome.py --panel --noise ont --err-dist mix --err-max 0.25 --init runs/<date>/genome_panel_aug.pt --steps 4000 --lr 2e-4 --warmup 100 --run-name panel_ontmix_ft
-python eval_genome.py runs/<date>/genome_panel_ontmix_ft.pt prodigal orf --panel
+python eval_genome.py runs/<date>/genome_panel_aug.pt prodigal orf --panel
+python compare_proteins.py runs/<date>/genome_panel_aug.pt prodigal fgs_454_10 diamond_panel --runs <nanopore run>
 ```
-
-Every run logs to `runs/<date>/metrics.json` and reports live progress to `runs/progress/`; watch with
-`python watch.py`. Long jobs run detached with `detach.ps1` (Windows scheduled task). The GPU is shared
-with the sister project: one job at a time, queued behind `gpu_idle.py`.
+Training takes ~20 minutes on one RTX 4090. Every run logs to `runs/<date>/metrics.json`; `python watch.py`
+shows live progress. Some helper scripts (`detach.ps1`, `gpu_idle.py`) are specific to the author's
+Windows machine; external tools (minimap2 in WSL, FragGeneScanRs, DIAMOND) go in `tools/`.
 
 ## Data and licences
-Not in the repository (see `.gitignore`); scripts download and rebuild it.
-- Genomes and annotations: NCBI RefSeq (public domain in the US; NCBI asks for citation of the
-  original submitters). Training: E. coli K-12 MG1655, C. jejuni, C. difficile, S. aureus, H. pylori,
-  L. monocytogenes, V. cholerae, Synechocystis, S. Typhimurium, P. aeruginosa, M. tuberculosis,
-  S. coelicolor, M. jannaschii. Held-out: B. subtilis, S. pneumoniae, D. radiodurans, T. thermophilus,
-  H. volcanii. Assembly accessions in `data/genome_*/meta.json`.
-- Nanopore reads: ENA/SRA runs ERR17000570 (2026 chemistry) and SRR11991309 (2020), public archive data.
-- Tools: minimap2 (MIT), Prodigal via pyrodigal (GPL-3.0; used as a baseline, not distributed here).
+Not in the repository; the scripts download and rebuild it.
+- Genomes and annotations: NCBI RefSeq (assembly accessions in `data/genome_*/meta.json` once prepared).
+- Nanopore reads: ENA/SRA runs ERR17000570 (2026 chemistry) and SRR11991309 (2020 chemistry).
+- Tools used for comparison, not distributed: minimap2 (MIT), pyrodigal/Prodigal (GPL-3.0),
+  FragGeneScanRs (GPL-3.0), DIAMOND (GPL-3.0).
+
+## Context
+Part of GATACA, an experiment on neural "organs" that find their own units in raw 2-bit streams
+(see `GATACA.md`). A sister project applies the same idea to raw file bits (text, audio).

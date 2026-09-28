@@ -5,7 +5,7 @@ gene structure themselves, robustly: sequencing errors, fragments, unseen specie
 play the role of bytes; the reading frame plays the role of byte alignment. Shared idea, rules and
 infrastructure: `GATACA.md`. The tokenizer track (text, audio, image) lives in `TRACK_TOKENIZERS.md`.
 
-**Location (since 2026-09-28):** `I:\LLMLab\GaTaCa-Genomics`, private repo `github.com/vider73/gataca-genomics`.
+**Location (since 2026-09-28):** `I:\LLMLab\GaTaCa-Genomics`, repo `github.com/vider73/gataca-genomics` (public since 2026-09-28).
 The tokenizer track stays in `I:\LLMLab\GaTaCa` (repo `vider73/gataca-tokenizers`). Both share the 4090:
 one job at a time through the lab-wide queue `python I:/LLMLab/GPUControl/gpu.py run --project genomics
 --name <job> -- <cmd>` (`gpu_idle.py` now defers to `gpu.py status`); long jobs run detached with
@@ -74,21 +74,19 @@ GPU: one local job at a time; queue scripts wait on `gpu_idle.py` (e.g. `runs/20
   reads: organ panel_aug + decoder recovers 0.883 of proteins (precision 0.906) vs FragGeneScanRs 0.864
   (0.833-0.850), Prodigal 0.257, DIAMOND -F vs the training species 0.259, DIAMOND vs the own proteome
   (oracle) 0.963. Best non-oracle method, but only by ~2 pt; FragGeneScan is the real baseline.
+- **Seeds** (`runs/2026-09-28/seeds_report.md`): 3 seeds per organ; proteins panel_aug 0.885 ± 0.003 vs
+  FragGeneScan 0.864 (every seed above it). Seed noise <= 0.5 pt nearly everywhere. panel_aug is the
+  default organ; nanopore fine-tunes only for very noisy reads (2020 reads 0.535 ± 0.009 vs 0.386).
 
 ## Next (in priority order)
-1. Seeds (3 per organ) for panel_aug, panel_ontmix_ft and panel_ontmix_sub_ft (4k-step fine-tunes are
-   ~7 min each): the three differ by <= 1.5 pt, so pick the default organ with error bars.
-   (Done: extra substitutions in the nanopore mix, `--ont-sub-max 0.05` -> panel_ontmix_sub_ft recovers
-   5%-subs robustness 0.969 vs 0.971 and keeps the nanopore gains, but loses 1.2 pt clean gene recall.)
-   (Tried: error-rate-aware frameshift cost in the decoder: +1.4 pt on 18%-error reads only, slightly
-   negative elsewhere; kept as an option, off by default. See `nanopore_ont_report.md`.)
-2. Fair precision on reads (genes cut by read ends), and Prodigal's gene-level numbers under indels.
-3. Compare with tools built for error-prone reads (FragGeneScan) and a neural gene finder (Balrog).
+1. More held-out species with real or simulated nanopore reads (e.g. badread / squigulator on the 4 other
+   held-out genomes) for protein recovery vs FragGeneScan; a metagenome-like mix with rare species.
+2. Prodigal's gene-level numbers under indels (fair precision on reads: done in compare_proteins.py).
+3. A neural gene finder (Balrog) in the protein comparison (FragGeneScan and DIAMOND done).
 4. A grammar probe independent of the synthetic generator (e.g. real proteins back-translated with a
    foreign codon table).
-5. Seeds and more held-out species for error bars.
-6. G2: a published genomic benchmark (Genomic Benchmarks / Nucleotide Transformer tasks).
-7. Later: learned units on DNA (the tokenizer idea applied to genomes); eukaryotes with introns.
+5. G2: a published genomic benchmark (Genomic Benchmarks / Nucleotide Transformer tasks).
+6. Later: learned units on DNA (the tokenizer idea applied to genomes); eukaryotes with introns.
 
 ## Publication view
 Most promising claim: frameshift-robust gene reading on unseen species, validated on real nanopore
