@@ -33,6 +33,7 @@ reads of a held-out archaeon, the organ keeps **94.7%** of the reading frame vs 
 | robustness table vs ORF rule and Prodigal (`--panel`); baselines cached | `eval_genome.py` |
 | grammar vs accent probe (synthetic genes / decoys) | `probe_synthetic.py` |
 | real nanopore reads: align, then evaluate | `prepare_nanopore.py`, `eval_nanopore.py` |
+| proteins recovered from raw reads vs Prodigal, FragGeneScanRs, DIAMOND blastx -F (`tools/`) | `compare_proteins.py` |
 Model: `gataca.Segmenter(n_out=7, conv_layers=6)` (~7M params). Grammar decoder: Viterbi with a soft
 gene grammar in `eval_genome.grammar_decode` (then codon-cycle split + stop snap).
 Nanopore error model for training: `gataca.mutate_nanopore` (indel-heavy, homopolymer-biased, bursty; from
