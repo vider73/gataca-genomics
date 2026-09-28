@@ -40,6 +40,7 @@ published profiles, not fit to our reads).
 Checkpoints: `runs/2026-09-26/genome_panel_aug.pt` (best on modern reads), `genome_panel_syn.pt`;
 `runs/2026-09-27/genome_panel_ont.pt` / `genome_panel_ont25.pt` (nanopore errors up to 15% / 25%),
 `runs/2026-09-27/genome_panel_ontmix_ft.pt` (**recommended for reads**: good on modern and old reads).
+`runs/2026-09-28/genome_panel_ontmix_sub_ft.pt` (same + extra substitutions; best 5%-subs robustness of the two).
 GPU: one local job at a time; queue scripts wait on `gpu_idle.py` (e.g. `runs/2026-09-28/queue_ontmix2.sh`).
 
 ## Results so far
@@ -69,7 +70,10 @@ GPU: one local job at a time; queue scripts wait on `gpu_idle.py` (e.g. `runs/20
   substitutions (0.956 vs 0.971) and 150 bp fragments (0.932 vs 0.943).
 
 ## Next (in priority order)
-1. A little more substitution noise in the nanopore mix (fine-tune) to recover panel_aug's 5%-subs number.
+1. Seeds (3 per organ) for panel_aug, panel_ontmix_ft and panel_ontmix_sub_ft (4k-step fine-tunes are
+   ~7 min each): the three differ by <= 1.5 pt, so pick the default organ with error bars.
+   (Done: extra substitutions in the nanopore mix, `--ont-sub-max 0.05` -> panel_ontmix_sub_ft recovers
+   5%-subs robustness 0.969 vs 0.971 and keeps the nanopore gains, but loses 1.2 pt clean gene recall.)
    (Tried: error-rate-aware frameshift cost in the decoder: +1.4 pt on 18%-error reads only, slightly
    negative elsewhere; kept as an option, off by default. See `nanopore_ont_report.md`.)
 2. Fair precision on reads (genes cut by read ends), and Prodigal's gene-level numbers under indels.

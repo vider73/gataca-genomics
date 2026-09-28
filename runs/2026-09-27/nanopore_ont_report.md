@@ -122,3 +122,34 @@ Organ: panel_ontmix_ft. Logs: `runs/eval_nanopore_fsauto.log`, `runs/2026-09-28/
 - Kept as an option (`grammar_decode(..., adaptive=True)`), off by default. The decoder's loss on very
   noisy reads more likely comes from the other fixed costs (internal stops appear with 7% substitutions)
   and from exact-stop placement; not pursued, the gain would be small.
+
+### Extra substitutions in the nanopore mix (2026-09-28, queue_ontsub_gpu2.sh)
+`panel_ontmix_sub_ft`: the panel_ontmix_ft recipe + uniform substitutions at a rate drawn from [0, 5%]
+per window (`--ont-sub-max 0.05`), 4k steps from panel_aug (7 min alone on the GPU). Logs:
+`runs/eval_nanopore_ontsub.log`, `runs/2026-09-28/genomics_panel_ontmix_sub_ft.md`.
+The fixed-cost decoder numbers of panel_ontmix_ft were re-run too (`genomics_fsfixed_check.md`): unchanged.
+
+| mean over 5 held-out species | panel_aug | panel_ontmix_ft | panel_ontmix_sub_ft |
+|---|---|---|---|
+| frame acc clean | **0.987** | 0.983 | 0.985 |
+| genes, grammar decoder | 0.930 | **0.934** | 0.922 |
+| frame acc 5% subs | **0.971** | 0.956 | 0.969 |
+| frame acc 1% indels | **0.902** | 0.900 | 0.901 |
+| frame acc 150 bp fragments | **0.943** | 0.932 | 0.937 |
+| genes decoder, 5% subs | **0.727** | 0.709 | 0.726 |
+| genes decoder, 1% indels | **0.406** | 0.400 | 0.399 |
+
+| real reads, H. volcanii | panel_aug | panel_ontmix_ft | panel_ontmix_sub_ft |
+|---|---|---|---|
+| 2026 reads, frame (decoder) | **0.947** | 0.945 | 0.946 |
+| 2026 reads, genes exact stop | 0.616 | **0.618** | 0.613 |
+| error-free stretches, frame | 0.989 | 0.988 | 0.989 |
+| 2020 reads, frame (organ alone) | 0.386 | **0.542** | 0.536 |
+
+- The extra substitutions do what they were meant to: 5%-subs robustness back to panel_aug's level
+  (0.969 vs 0.971; genes 0.726 vs 0.727) and fragments +0.5 pt, while keeping the nanopore gains
+  (2020 reads 0.536 vs 0.386).
+- Cost: clean gene recall with the decoder -1.2 pt vs panel_ontmix_ft (0.922 vs 0.934), same on the
+  training species (0.916 vs 0.938). The other differences between the two are <= 0.6 pt.
+- No clear winner between panel_ontmix_ft and panel_ontmix_sub_ft with one seed each: most gaps are
+  within what a second seed could move. Error bars (seeds) are needed before choosing.
