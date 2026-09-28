@@ -1,0 +1,14 @@
+# Data, tools, checkpoints and run artefacts stay local (large; genomes and reads come from NCBI / ENA)
+data/
+tools/
+*.pt
+__pycache__/
+*.tmp
+*.log
+
+# Keep the written reports from runs/, nothing else (checkpoints, logs, progress files)
+runs/**
+!runs/*/
+!runs/*/*.md
+runs/jobs/
+runs/progress/
