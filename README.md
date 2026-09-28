@@ -81,7 +81,7 @@ shows live progress. Some helper scripts (`detach.ps1`, `gpu_idle.py`) are speci
 Windows machine; external tools (minimap2 in WSL, FragGeneScanRs, DIAMOND) go in `tools/`.
 
 ## Data and licences
-Not in the repository; the scripts download and rebuild it.
+Code: MIT (see `LICENSE`). Data is not in the repository; the scripts download and rebuild it.
 - Genomes and annotations: NCBI RefSeq (assembly accessions in `data/genome_*/meta.json` once prepared).
 - Nanopore reads: ENA/SRA runs ERR17000570 (2026 chemistry) and SRR11991309 (2020 chemistry).
 - Tools used for comparison, not distributed: minimap2 (MIT), pyrodigal/Prodigal (GPL-3.0),
