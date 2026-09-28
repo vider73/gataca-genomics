@@ -7,8 +7,9 @@ infrastructure: `GATACA.md`. The tokenizer track (text, audio, image) lives in `
 
 **Location (since 2026-09-28):** `I:\LLMLab\GaTaCa-Genomics`, private repo `github.com/vider73/gataca-genomics`.
 The tokenizer track stays in `I:\LLMLab\GaTaCa` (repo `vider73/gataca-tokenizers`). Both share the 4090:
-one job at a time, queued behind `gpu_idle.py` (it checks both folders' `runs/progress`); long jobs run
-detached with `detach.ps1` (`-List` shows both projects' jobs).
+one job at a time through the lab-wide queue `python I:/LLMLab/GPUControl/gpu.py run --project genomics
+--name <job> -- <cmd>` (`gpu_idle.py` now defers to `gpu.py status`); long jobs run detached with
+`detach.ps1` whose command is a queue script (e.g. `runs/2026-09-28/queue_ontsub_gpu.sh`).
 
 ## Status (2026-09-27)
 G1 (gene structure in bacteria) is done up to real nanopore reads. Main result: on real 2026 nanopore

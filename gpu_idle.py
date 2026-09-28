@@ -4,6 +4,8 @@ Files named pod_*.json are remote jobs (RunPod) and are skipped. A job counts as
 runs/progress/<run>.json says "running" and its process is still alive, however long since its last update
 (a slow evaluation may report only every half hour).
 The 4090 is shared with the sister project (tokenizers, ../GaTaCa), so its runs/progress is checked too.
+If the lab-wide GPU queue exists (I:/LLMLab/GPUControl/gpu.py), its `status` decides instead: it knows both
+the queue's lock and these progress folders. Prefer `gpu.py run` to launch GPU work.
 """
 
 import argparse
@@ -12,6 +14,8 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+
+GPU_QUEUE = Path("I:/LLMLab/GPUControl/gpu.py")
 
 
 def alive(pid: int) -> bool:
@@ -46,6 +50,8 @@ def main():
                    help="progress folders of every project that uses this GPU (missing ones are skipped)")
     p.add_argument("--ignore", nargs="*", default=[], help="runs that do not use the local GPU (e.g. remote pods)")
     args = p.parse_args()
+    if GPU_QUEUE.exists() and not args.ignore:
+        sys.exit(subprocess.run([sys.executable, str(GPU_QUEUE), "status"]).returncode)
     jobs = [j for d in args.progress_dir if d.is_dir() for j in running_jobs(d) if j not in args.ignore]
     print("busy: " + ", ".join(jobs) if jobs else "idle")
     sys.exit(1 if jobs else 0)
