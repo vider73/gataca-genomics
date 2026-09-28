@@ -148,11 +148,13 @@ def main():
     p.add_argument("--recompute", action="store_true")
     p.add_argument("--score-only", action="store_true", help="only score the cached proteins of every target")
     p.add_argument("--runs-dir", type=Path, default=Path("runs"))
+    p.add_argument("--proteins-dir", type=Path, default=None,
+                   help="protein cache to reuse (default runs/<date>/proteins), e.g. to add organs on a later day")
     p.add_argument("--seed", type=int, default=0)
     args = p.parse_args()
 
     out_dir = run_dir(args.runs_dir)
-    work = out_dir / "proteins"
+    work = args.proteins_dir or out_dir / "proteins"
     work.mkdir(exist_ok=True)
     gdir = Path("data") / f"genome_{args.genome}"
     ref_seq = to_seq(np.load(gdir / "symbols.npy"))
