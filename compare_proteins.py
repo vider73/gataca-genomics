@@ -122,7 +122,9 @@ def read_faa(path: Path):
 
 
 def run_diamond(args):
-    return subprocess.run([str(DIAMOND), *args], capture_output=True, text=True, check=True).stdout
+    # stdin=DEVNULL: detached jobs (scheduled tasks) have no console handle to inherit
+    return subprocess.run([str(DIAMOND), *args], capture_output=True, text=True, check=True,
+                          stdin=subprocess.DEVNULL).stdout
 
 
 def build_db(fasta: Path, db: Path):
@@ -244,7 +246,7 @@ def main():
                 faa = rdir / f"raw_{t}.faa"
                 subprocess.run(["wsl", "-e", "bash", "-c",
                                 f"{wsl_path(Path(FGS))} -s {wsl_path(reads_fa)} -a {wsl_path(faa)} -w 0 "
-                                f"-t {t.removeprefix('fgs_')} -p {args.threads}"], check=True)
+                                f"-t {t.removeprefix('fgs_')} -p {args.threads}"], check=True, stdin=subprocess.DEVNULL)
                 for name, prot in read_faa(faa).items():
                     k, a, b, st = name.rsplit("_", 3)  # FragGeneScan: <read>_<start>_<end>_<strand>, 1-based
                     span = ref_span(int(a) - 1, int(b) - 1, reads[k][1])
